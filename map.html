@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peta Interaktif Pulau Sumatera</title>
+    <title>Peta Interaktif Sumatera</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
         #map { height: 600px; width: 100%; }
@@ -14,59 +14,73 @@
 <h2>Peta Interaktif - Pulau Sumatera</h2>
 <div id="map"></div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+
+<!-- Leaflet.js -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <script>
+    // 🔥 KONFIGURASI FIREBASE (GANTI DENGAN PUNYA KAMU)
+    const firebaseConfig = {
+        apiKey: "API_KEY_KAMU",
+        authDomain: "PROJECT_ID.firebaseapp.com",
+        projectId: "PROJECT_ID",
+        storageBucket: "PROJECT_ID.appspot.com",
+        messagingSenderId: "SENDER_ID",
+        appId: "APP_ID"
+    };
+
+    // 🔥 Inisialisasi Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // 🗺️ Inisialisasi Peta di Pulau Sumatera
     var map = L.map('map', {
         center: [0, 101], // Koordinat tengah Sumatera
         zoom: 6,
-        maxBounds: [[-6, 94], [7, 107]], // Batas area Sumatera
+        maxBounds: [[-6, 94], [7, 107]], // Batasi area hanya di Sumatera
         maxBoundsViscosity: 1.0
     });
 
+    // 🌍 Tambahkan Tile Layer (Peta)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // Ambil marker dari Local Storage
+    // 📌 Fungsi untuk menampilkan semua marker dari Firebase
     function loadMarkers() {
-        var savedMarkers = JSON.parse(localStorage.getItem("markers") || "[]");
-        savedMarkers.forEach(m => {
-            L.marker([m.lat, m.lng]).addTo(map)
-                .bindPopup(m.info);
-        });
+        db.collection("markers").get().then(querySnapshot => {
+            querySnapshot.forEach(doc => {
+                let data = doc.data();
+                let marker = L.marker([data.lat, data.lng]).addTo(map)
+                    .bindPopup(data.info);
+            });
+        }).catch(error => console.error("Gagal memuat marker:", error));
     }
 
-    // Simpan marker ke Local Storage
-    function saveMarkers() {
-        var markers = [];
-        map.eachLayer(layer => {
-            if (layer instanceof L.Marker) {
-                markers.push({
-                    lat: layer.getLatLng().lat,
-                    lng: layer.getLatLng().lng,
-                    info: layer.getPopup().getContent()
-                });
-            }
-        });
-        localStorage.setItem("markers", JSON.stringify(markers));
-    }
-
-    // Tambahkan marker baru saat pengguna mengklik peta
+    // 📍 Tambah Marker Baru & Simpan ke Firebase
     function onMapClick(e) {
         var info = prompt("Masukkan informasi untuk lokasi ini:");
         if (info) {
-            var marker = L.marker(e.latlng).addTo(map)
+            let newMarker = L.marker(e.latlng).addTo(map)
                 .bindPopup(info)
                 .openPopup();
-            saveMarkers(); // Simpan marker ke Local Storage
+
+            db.collection("markers").add({
+                lat: e.latlng.lat,
+                lng: e.latlng.lng,
+                info: info
+            }).then(() => console.log("Marker berhasil disimpan!"))
+            .catch(error => console.error("Gagal menyimpan marker:", error));
         }
     }
 
-    // Muat marker saat halaman pertama kali dibuka
+    // 🔄 Muat marker saat halaman dibuka
     loadMarkers();
 
-    // Simpan setiap kali ada marker baru
-    map.on("click", () => setTimeout(saveMarkers, 1000));
+    // 🔘 Tambahkan event untuk klik peta
     map.on("click", onMapClick);
 </script>
 
