@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peta Interaktif Sumatera</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+
+<h2>Peta Interaktif - Pulau Sumatera</h2>
+<div id="map"></div>
+
+<!-- Leaflet.js -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+    // 🗺️ Inisialisasi Peta di Pulau Sumatera
+    var map = L.map('map', {
+        center: [0, 101], // Koordinat tengah Sumatera
+        zoom: 6,
+        maxBounds: [[-6, 94], [7, 107]], // Batasi area hanya di Sumatera
+        maxBoundsViscosity: 1.0
+    });
+
+    // 🌍 Tambahkan Tile Layer (Peta)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // 📌 Simpan daftar marker
+    let markers = [];
+
+    // 🔄 Muat marker dari LocalStorage
+    function loadMarkers() {
+        let storedMarkers = localStorage.getItem("savedMarkers");
+        if (storedMarkers) {
+            markers = JSON.parse(storedMarkers);
+            markers.forEach(data => {
+                let marker = L.marker([data.lat, data.lng]).addTo(map)
+                    .bindPopup(data.info)
+                    .on("click", editMarker)
+                    .on("contextmenu", removeMarker);
+                data.marker = marker;
+            });
+        }
+    }
+
+    // 📍 Tambah Marker Baru
+    function onMapClick(e) {
+        var info = prompt("Masukkan informasi untuk lokasi ini:");
+        if (info) {
+            let newMarker = L.marker(e.latlng).addTo(map)
+                .bindPopup(info)
+                .on("click", editMarker)
+                .on("contextmenu", removeMarker);
+
+            // Simpan ke array
+            let markerData = { lat: e.latlng.lat, lng: e.latlng.lng, info: info, marker: newMarker };
+            markers.push(markerData);
+            saveMarkers();
+        }
+    }
+
+    // ✏️ Edit Marker (Klik Kiri)
+    function editMarker(e) {
+        let marker = e.target;
+        let newInfo = prompt("Edit informasi:", marker.getPopup().getContent());
+        if (newInfo) {
+            marker.setPopupContent(newInfo);
+            let markerData = markers.find(m => m.lat === marker.getLatLng().lat && m.lng === marker.getLatLng().lng);
+            if (markerData) {
+                markerData.info = newInfo;
+                saveMarkers();
+            }
+        }
+    }
+
+    // ❌ Hapus Marker (Klik Kanan)
+    function removeMarker(e) {
+        let marker = e.target;
+        if (confirm("Hapus marker ini?")) {
+            map.removeLayer(marker);
+            markers = markers.filter(m => m.lat !== marker.getLatLng().lat || m.lng !== marker.getLatLng().lng);
+            saveMarkers();
+        }
+    }
+
+    // 💾 Simpan marker ke LocalStorage
+    function saveMarkers() {
+        localStorage.setItem("savedMarkers", JSON.stringify(markers.map(({ marker, ...rest }) => rest)));
+    }
+
+    // 🔄 Panggil fungsi loadMarkers
+    loadMarkers();
+
+    // 🔘 Tambahkan event klik untuk tambah marker
+    map.on("click", onMapClick);
+</script>
+
+</body>
+</html>
